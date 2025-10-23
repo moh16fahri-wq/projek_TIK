@@ -1093,37 +1093,85 @@ function renderAdminPengumumanList() {
     }
 }
 
-async function hapusPengumuman(id) {
+function hapusPengumuman(id) {
     if (!confirm('Yakin ingin menghapus pengumuman ini?')) return;
     
-    try {
-        const formData = new FormData();
-        formData.append('table', 'pengumuman');
-        formData.append('id', id);
-        
-        const response = await fetch('delete_data.php', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            alert(result.message);
-            
-            data.pengumuman = data.pengumuman.filter(p => p.id !== id);
-            
-            renderAdminPengumumanList();
-        } else {
-            alert('Error: ' + result.message);
+    data.pengumuman = data.pengumuman.filter(p => p.id !== id);
+    saveData();
+    alert("Pengumuman berhasil dihapus!");
+    renderAdminPengumumanList();
+}
+function resetData() {
+    if (confirm("PERINGATAN: Semua data akan dihapus dan kembali ke data default. Yakin?")) {
+        if (confirm("Konfirmasi sekali lagi: Data tidak dapat dikembalikan!")) {
+            localStorage.removeItem('sekolahDigitalData');
+            data = JSON.parse(JSON.stringify(defaultData));
+            saveData();
+            alert("Data berhasil direset! Halaman akan reload.");
+            location.reload();
         }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Terjadi kesalahan saat menghapus');
     }
 }
+
+// FUNGSI EXPORT DATA (OPSIONAL - UNTUK BACKUP)
+function exportData() {
+    const dataStr = JSON.stringify(data, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backup-sekolah-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    alert("Data berhasil di-export!");
+}
+
+// FUNGSI IMPORT DATA (OPSIONAL - UNTUK RESTORE)
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    if (confirm("Yakin ingin mengimport data ini? Data saat ini akan diganti.")) {
+                        data = importedData;
+                        saveData();
+                        alert("Data berhasil di-import! Halaman akan reload.");
+                        location.reload();
+                    }
+                } catch (error) {
+                    alert("File tidak valid! Pastikan file adalah backup JSON yang benar.");
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+        }
+    };
+    input.click();
+}
+
+// INISIALISASI APLIKASI
+document.addEventListener('DOMContentLoaded', loadDataAndInit);
+
+// AUTO-SAVE SETIAP 30 DETIK (OPSIONAL - UNTUK KEAMANAN DATA)
+setInterval(() => {
+    if (data) {
+        saveData();
+        console.log("Auto-save berhasil:", new Date().toLocaleTimeString());
+    }
+}, 30000); // 30 detik
+
+// PERINGATAN SEBELUM KELUAR (OPSIONAL)
+window.addEventListener('beforeunload', (e) => {
+    saveData();
+});
 
 // INISIALISASI APLIKASI
 
 document.addEventListener('DOMContentLoaded', loadDataAndInit);
+
